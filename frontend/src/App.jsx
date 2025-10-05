@@ -7,16 +7,18 @@ import PlaceOrder from './pages/PlaceOrder/PlaceOrder';
 import Footer from './components/Footer/Footer';
 import LoginPopup from './components/LoginPopup/LoginPopup';
 import Verify from './pages/verify/Verify';
-import StoreContextProvider from './context/StoreContext';
+import StoreContextProvider, { StoreContext } from './context/StoreContext';
 import axios from 'axios';
 import MyOrders from './pages/MyOrders/MyOrders';
 import List from './pages/seller/pages/List/List';
 import Orders from './pages/seller/pages/Orders/Orders';
 import Add from './pages/seller/pages/Add/Add';
 import SellerRoute from './pages/seller/SellerRoute';
+import { useContext } from 'react';
 
 const App = () => {
-      const url = "http://localhost:3000"
+  // const url = "http://localhost:3000"
+  const { url } = useContext(StoreContext)
 
   const [showLogin, setShowLogin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -31,7 +33,7 @@ const App = () => {
           <Route path='/cart' element={<Cart />} />
           <Route path='/order' element={<PlaceOrder />} />
           <Route path='/verify' element={<Verify />} />
-          <Route path='/myorders' element={<MyOrders/>}/>
+          <Route path='/myorders' element={<MyOrders />} />
 
           <Route path='/admin' element={<SellerRoute />}>
             <Route path='add' element={<Add url={url} />} />

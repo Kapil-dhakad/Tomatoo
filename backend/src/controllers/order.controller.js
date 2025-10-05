@@ -9,7 +9,23 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 // placing user order
 async function placeOrder(req, res) {
-    const frontend_url = process.env.FRONTEND_URL;
+    // Determine frontend URL: prefer env, fall back to request origin or forwarded proto
+    let frontend_url = process.env.FRONTEND_URL;
+    if (!frontend_url) {
+        // req.get('origin') may provide full origin
+        frontend_url = req.get('origin') || null;
+    }
+    if (!frontend_url) {
+        // try building from forwarded proto or req.protocol
+        const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0];
+        frontend_url = `${proto}://${req.get('host')}`;
+    }
+    // Ensure explicit scheme (http or https)
+    if (!/^https?:\/\//i.test(frontend_url)) {
+        console.warn('Derived frontend_url missing scheme, forcing https:', frontend_url);
+        frontend_url = `https://${frontend_url}`;
+    }
+    console.log('Using frontend_url for Stripe redirect:', frontend_url);
     const { items, amount, address } = req.body
     try {
         // Basic validation to avoid runtime errors (map on undefined etc.)

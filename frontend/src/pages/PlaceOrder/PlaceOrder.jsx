@@ -2,63 +2,75 @@ import React, { useContext, useEffect, useState } from 'react'
 import './PlaceOrder.css'
 import { StoreContext } from '../../context/StoreContext'
 import axios from 'axios';
-import { useNavigate } from "react-router-dom";  
+import { useNavigate } from "react-router-dom";
 
 export const PlaceOrder = () => {
   const navigate = useNavigate()
 
-  const {getTotalCartAmount, food_list, cartItems, url} = useContext(StoreContext);
+  const { getTotalCartAmount, food_list, cartItems, url } = useContext(StoreContext);
   const [data, setData] = useState({
-    firstName:"",
-    lastName:"",
-    email:"",
-    street:"",
-    city:"",
-    state:"",
-    zipcode:"",
-    country:"",
-    phone:""
+    firstName: "",
+    lastName: "",
+    email: "",
+    street: "",
+    city: "",
+    state: "",
+    zipcode: "",
+    country: "",
+    phone: ""
   })
 
-  const onChangeHandler = (e)=>{
+  const onChangeHandler = (e) => {
     const name = e.target.name;
     const value = e.target.value;
-    setData(data=>({...data, [name]:value}))
+    setData(data => ({ ...data, [name]: value }))
   }
- 
-  const placeOrder = async(e) => {
+
+  const placeOrder = async (e) => {
     e.preventDefault()
-    const orderItems =[];
-   food_list.forEach(item => {
-  if(cartItems[item._id] > 0){
-    const itemInfo = {...item, quantity: cartItems[item._id]};
-    orderItems.push(itemInfo);
-  }
-});
+    const orderItems = [];
+    food_list.forEach(item => {
+      if (cartItems[item._id] > 0) {
+        const itemInfo = { ...item, quantity: cartItems[item._id] };
+        orderItems.push(itemInfo);
+      }
+    });
 
     const orderData = {
       address: data,
       items: orderItems,
-      amount:getTotalCartAmount()+50,
+      amount: getTotalCartAmount() + 50,
 
     }
-    const response = await axios.post(`${url}/api/order/place`, orderData, { withCredentials: true })
-    if(response.data.success){
-      const {session_url} = response.data;
-      window.location.replace(session_url)
+    // Client-side validation before sending
+    if (!orderItems || orderItems.length === 0) {
+      alert('Your cart is empty. Add items before placing an order.');
+      return;
     }
-    else{
-      alert("Error")
+
+    try {
+      console.log('Placing order', orderData);
+      const response = await axios.post(`${url}/api/order/place`, orderData, { withCredentials: true })
+      if (response.data && response.data.success) {
+        const { session_url } = response.data;
+        window.location.replace(session_url)
+      } else {
+        alert(response.data && response.data.message ? response.data.message : 'Error placing order');
+      }
+    } catch (err) {
+      console.error('Place order failed:', err);
+      const msg = err?.response?.data?.message || err.message || 'Unknown error';
+      alert(`Place order failed: ${msg}`);
     }
   }
-  
+
   useEffect(() => {
-  if(getTotalCartAmount() === 0){
-    navigate('/cart')
-  }
-}, [getTotalCartAmount])
+    if (getTotalCartAmount() === 0) {
+      navigate('/cart')
+    }
+  }, [getTotalCartAmount])
 
-  
+
 
   return (
     <form onSubmit={placeOrder} className='place-order'>
@@ -81,22 +93,22 @@ export const PlaceOrder = () => {
         <input required name='phone' onChange={onChangeHandler} value={data.phone} type='text' placeholder='Phone' />
       </div>
       <div className='place-order-right'>
-      <div className='cart-total'>
+        <div className='cart-total'>
           <h2>Cart Total</h2>
           <div>
-             <div className='cart-total-details'>
+            <div className='cart-total-details'>
               <p>Subtotal</p>
               <p>${getTotalCartAmount()}</p>
             </div>
             <hr />
             <div className='cart-total-details'>
-            <p>Delivery Fee</p>
-            <p>${getTotalCartAmount()===0?0:50}</p>
+              <p>Delivery Fee</p>
+              <p>${getTotalCartAmount() === 0 ? 0 : 50}</p>
             </div>
             <hr />
             <div className='cart-total-details'>
-            <b>Total</b>
-            <b>${getTotalCartAmount()===0?0:getTotalCartAmount()+50}</b>
+              <b>Total</b>
+              <b>${getTotalCartAmount() === 0 ? 0 : getTotalCartAmount() + 50}</b>
             </div>
           </div>
           <button type='submit'>PROCEED TO PAYMENT</button>

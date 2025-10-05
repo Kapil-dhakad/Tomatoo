@@ -13,11 +13,18 @@ async function placeOrder(req, res) {
     const { items, amount, address } = req.body
     try {
         // Basic validation to avoid runtime errors (map on undefined etc.)
+        if (!req.userId) {
+            console.warn('placeOrder called without authenticated user');
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        }
+
         if (!items || !Array.isArray(items) || items.length === 0) {
             console.warn('placeOrder called with invalid items:', items);
             return res.status(400).json({ success: false, message: 'No items provided' });
         }
-        if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) {
+
+        const amountNum = Number(amount);
+        if (isNaN(amountNum) || amountNum <= 0) {
             console.warn('placeOrder called with invalid amount:', amount);
             return res.status(400).json({ success: false, message: 'Invalid amount' });
         }
@@ -27,18 +34,34 @@ async function placeOrder(req, res) {
             userId: req.userId,
             items,
             address,
-            amount
+            amount: amountNum
         })
         await userModel.findByIdAndUpdate(req.userId, { cartData: {} })
 
-        const line_items = req.body.items.map((item) => ({
-            price_data: {
-                currency: "INR",
-                product_data: { name: item.name },
-                unit_amount: Math.round(item.price * 100) // rupees to paisa
-            },
-            quantity: item.quantity // typo fix
-        }));
+        // Build Stripe line items safely: coerce numbers and filter invalid entries
+        const line_items = req.body.items
+            .map((item) => {
+                const priceNum = Number(item.price);
+                const qty = Number(item.quantity) || 0;
+                if (isNaN(priceNum) || priceNum <= 0 || qty <= 0) {
+                    return null;
+                }
+
+                return {
+                    price_data: {
+                        currency: "INR",
+                        product_data: { name: item.name || 'Item' },
+                        unit_amount: Math.round(priceNum * 100) // rupees to paisa
+                    },
+                    quantity: qty
+                };
+            })
+            .filter(Boolean);
+
+        if (line_items.length === 0) {
+            console.warn('No valid line items for Stripe session, items:', req.body.items);
+            return res.status(400).json({ success: false, message: 'No valid items to charge' });
+        }
         line_items.push({
             price_data: {
                 currency: "INR",

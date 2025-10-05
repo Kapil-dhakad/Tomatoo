@@ -6,7 +6,8 @@ export const StoreContext = createContext(null);
 const StoreContextProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState({});
   const [food_list, setFood_list] = useState([]);
-  const url = import.meta.env.VITE_URL;;  //process.env.VITE_URL;
+  // Use build-time VITE_URL if provided, otherwise fall back to the deployed backend
+  const url = import.meta.env.VITE_URL || 'https://tomatoo-pq7b.onrender.com';
 
   const fetchFoodList = async () => {
     try {
@@ -52,18 +53,19 @@ const StoreContextProvider = ({ children }) => {
     }
   };
 
-const getTotalCartAmount = () => {
+  const getTotalCartAmount = () => {
     let totalAmount = 0;
     for (const item in cartItems) {
-        if (cartItems[item] > 0) {
-            const product = food_list.find(p => p._id === item);
-            if (product) { // <-- check added
-                totalAmount += product.price * cartItems[item];
-            }
+      if (cartItems[item] > 0) {
+        const product = food_list.find(p => p._id === item);
+        if (product) { // <-- check added
+          const priceNum = Number(product.price) || 0;
+          totalAmount += priceNum * cartItems[item];
         }
+      }
     }
     return totalAmount;
-};
+  };
 
 
   return (

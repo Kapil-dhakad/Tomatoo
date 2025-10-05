@@ -9,10 +9,12 @@ const orderRouter = require('./routes/order.route');
 
 const app = express();
 
-app.use(cors({
-    origin: process.env.FRONTEND_URL,
+// Allow requests from FRONTEND_URL if provided, otherwise reflect the request origin.
+const corsOptions = {
+    origin: process.env.FRONTEND_URL || true,
     credentials: true
-}));
+};
+app.use(cors(corsOptions));
 
 
 app.use(express.json())

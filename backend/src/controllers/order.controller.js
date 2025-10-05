@@ -2,6 +2,9 @@ const orderModel = require("../models/order.model");
 const userModel = require("../models/user.model");
 const Stripe = require('stripe')
 
+if (!process.env.STRIPE_SECRET_KEY) {
+    console.error('Missing STRIPE_SECRET_KEY in environment');
+}
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 // placing user order
@@ -9,6 +12,17 @@ async function placeOrder(req, res) {
     const frontend_url = process.env.FRONTEND_URL;
     const { items, amount, address } = req.body
     try {
+        // Basic validation to avoid runtime errors (map on undefined etc.)
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            console.warn('placeOrder called with invalid items:', items);
+            return res.status(400).json({ success: false, message: 'No items provided' });
+        }
+        if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) {
+            console.warn('placeOrder called with invalid amount:', amount);
+            return res.status(400).json({ success: false, message: 'Invalid amount' });
+        }
+        // Log some request context to help debugging in deployed logs
+        console.log(`placeOrder request: userId=${req.userId}, items=${items.length}, amount=${amount}`);
         const order = await orderModel.create({
             userId: req.userId,
             items,
@@ -49,10 +63,15 @@ async function placeOrder(req, res) {
             session_url: session.url
         })
     } catch (error) {
-        console.error("Stripe placeOrder error:", error);
+        // Log detailed error to help debugging on deploy
+        console.error("Stripe placeOrder error:", error && error.message ? error.message : error);
+        // If Stripe returned an error object with statusCode, forward it
+        if (error && error.statusCode) {
+            return res.status(error.statusCode).json({ success: false, message: error.message });
+        }
         res.status(500).json({
             success: false,
-            message: "Error"
+            message: "Internal server error while creating Stripe session"
         });
     }
 }
@@ -85,34 +104,34 @@ async function verifyOrder(req, res) {
 async function userOrders(req, res) {
 
     try {
-        const orders = await orderModel.find({userId: req.userId});
-        res.status(200).json({success: true, orders})
+        const orders = await orderModel.find({ userId: req.userId });
+        res.status(200).json({ success: true, orders })
     } catch (error) {
-        res.status(500).json({success: false, message: "Error"})
+        res.status(500).json({ success: false, message: "Error" })
     }
 }
 
 //Listing orders for admin panel
-async function listOrders(req, res){
+async function listOrders(req, res) {
     try {
         const orders = await orderModel.find();
-        res.status(200).json({success: true, data:orders})
+        res.status(200).json({ success: true, data: orders })
     } catch (error) {
-        res.status(500).json({success: false, message: "Error"})
+        res.status(500).json({ success: false, message: "Error" })
     }
 }
 
 //api for updating order status
-async function updateStatus(req, res){
+async function updateStatus(req, res) {
     try {
-        await orderModel.findByIdAndUpdate(req.body.orderId, {status: req.body.status})
-        res.status(200).json({success: true, message: "Status updated"})
+        await orderModel.findByIdAndUpdate(req.body.orderId, { status: req.body.status })
+        res.status(200).json({ success: true, message: "Status updated" })
     } catch (error) {
         console.log(error)
-        res.status(500).json({success: false, message: "Error"})
+        res.status(500).json({ success: false, message: "Error" })
     }
 }
-    
+
 
 module.exports = {
     placeOrder,

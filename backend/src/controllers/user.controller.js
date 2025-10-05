@@ -20,7 +20,15 @@ async function registerUser(req, res) {
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-        res.cookie("token", token, { httpOnly: true });
+        // Determine secure cookie settings even if NODE_ENV is not set.
+        // If frontend URL is HTTPS, we must set secure and sameSite='none' for cross-site cookies.
+        const isSecureCookie = (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https')) || (process.env.NODE_ENV === 'production');
+        const cookieOptions = {
+            httpOnly: true,
+            secure: !!isSecureCookie,
+            sameSite: isSecureCookie ? 'none' : 'lax'
+        };
+        res.cookie("token", token, cookieOptions);
 
         return res.status(201).json({
             success: true,
@@ -55,7 +63,14 @@ async function loginUser(req, res) {
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-        res.cookie("token", token, { httpOnly: true });
+        // Determine secure cookie settings even if NODE_ENV is not set.
+        const isSecureCookie = (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https')) || (process.env.NODE_ENV === 'production');
+        const cookieOptions = {
+            httpOnly: true,
+            secure: !!isSecureCookie,
+            sameSite: isSecureCookie ? 'none' : 'lax'
+        };
+        res.cookie("token", token, cookieOptions);
         return res.status(200).json({
             success: true,
             message: "User logged in successfully",
@@ -86,7 +101,8 @@ async function getMe(req, res) {
 
 async function logoutUser(req, res) {
     try {
-        res.clearCookie("token");
+        const isSecureCookie = (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https')) || (process.env.NODE_ENV === 'production');
+        res.clearCookie("token", { httpOnly: true, secure: !!isSecureCookie, sameSite: isSecureCookie ? 'none' : 'lax' });
 
         return res.status(200).json({ success: true, message: "Logged out successfully" });
     } catch (error) {
